@@ -111,7 +111,9 @@ def db_magfield(
         else:
             field = field.transpose((2, 0, 1))
 
-        db["field"][idx] = field * 4 * np.pi * 1e-7
+        # Transpose the field to have 'ij' indexing
+        field_ij = np.stack([field[0].T, field[1].T, field[2].T], axis=0)
+        db["field"][idx] = field_ij * 4 * np.pi * 1e-7
 
     db.close()
 
@@ -127,6 +129,7 @@ def db_magfield_symm(
     intv: list | None = None,
     name: str = "magfield_symm",
     empty: bool = False,
+    z_comp: bool = False,
 ) -> None:
     """
     Generate 3-D magnetic fields of experimental setup.
@@ -144,6 +147,8 @@ def db_magfield_symm(
     """
     symm = True
     fname = f"{name}_{res[0]}"
+    if z_comp:
+        fname += "_z"
     if intv is None:
         intv = [0, n_samples]
     if not empty:
@@ -151,7 +156,7 @@ def db_magfield_symm(
     n_intv = intv[1] - intv[0]
 
     db = h5py.File(f"{datapath}/{fname}.h5", libver="latest", mode="w")
-    out_shape = (n_intv, 3, *res) if not symm else (n_intv, 2, *res)
+    out_shape = (n_intv, 3, *res) if z_comp else (n_intv, 2, *res)
     db.create_dataset("field", shape=out_shape, dtype="float32")
     if not empty:
         db.attrs["intv"] = intv
@@ -247,10 +252,13 @@ def db_magfield_symm(
             if len(res) == 3
             else field.transpose((2, 0, 1))
         )
-        if symm:
-            field = field[:2]
 
-        db["field"][idx] = field * 4 * np.pi * 1e-7
+        # Transpose the field to have 'ij' indexing
+        if z_comp:
+            field_ij = np.stack([field[0].T, field[1].T, field[2].T], axis=0)
+        else:
+            field_ij = np.stack([field[0].T, field[1].T], axis=0)
+        db["field"][idx] = field_ij * 4 * np.pi * 1e-7
 
     db.close()
 
