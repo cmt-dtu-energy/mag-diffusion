@@ -5,9 +5,9 @@ Bachelor project of Jeppe
 
 Install via
 ```python
-conda create -n mag-diff python=3.11 && conda activate mag-diff
+conda create -n pmdd python=3.11 && conda activate pmdd
 conda install magtense -c cmt-dtu-energy/label/cuda-12 -c nvidia/label/cuda-12.2.2
-conda install -y notebook
+conda install -y notebook tqdm h5py
 ```
 
 ## Install local package
