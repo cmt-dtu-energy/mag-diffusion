@@ -146,7 +146,7 @@ def db_magfield_symm(
         empty: If set, an empty database is created.
     """
     symm = True
-    fname = f"{name}_{res[0]}"
+    fname = f"{name}_{res[0]}_{n_samples}"
     if z_comp:
         fname += "_z"
     if intv is None:
