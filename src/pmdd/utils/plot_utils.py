@@ -7,8 +7,9 @@ def plot_magfield(field: np.ndarray, vmax: float = 1) -> None:
     plt.clf()
     labels = ["Bx-field", "By-field", "Bz-field"]
     nrows = 3 if len(field.shape) == 4 else 1
+    ncols = field.shape[0]
     fig, axes = plt.subplots(
-        nrows=nrows, ncols=3, sharex=True, sharey=True, figsize=(15, 10)
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=(15, 10)
     )
     norm = colors.Normalize(vmin=-vmax, vmax=vmax)
 
@@ -32,3 +33,22 @@ def plot_magfield(field: np.ndarray, vmax: float = 1) -> None:
     cbar_ax = fig.add_axes([0.825, 0.345, 0.015, 0.3])
     fig.colorbar(im, cax=cbar_ax)
     plt.show()
+
+
+def plot_ddpm_sample(field: np.ndarray) -> None:
+    nrows = field.shape[0]
+    ncols = field.shape[1]
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=(15, 10)
+    )
+    norm = colors.Normalize(vmin=-1, vmax=1)
+
+    for j, sample in enumerate(field):
+        for k, comp in enumerate(sample):
+            ax = axes.flat[j * ncols + k]
+            im = ax.imshow(comp.numpy(), cmap="bwr", norm=norm, origin="lower")
+
+    cbar_ax = fig.add_axes([0.825, 0.345, 0.015, 0.3])
+    fig.colorbar(im, cax=cbar_ax)
+
+    return fig

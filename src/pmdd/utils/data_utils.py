@@ -118,7 +118,7 @@ def db_magfield(
     db.close()
 
 
-def db_magfield_symm(
+def db_magfield_symm(  # noqa: PLR0912
     datapath: Path,
     n_samples: int,
     res: list[int],
@@ -265,8 +265,8 @@ def db_magfield_symm(
 
 def create_db_mp(  # noqa: PLR0912
     data: str,
-    n_workers: int | None = None,
     datapath: Path | None = None,
+    n_workers: int | None = None,
     **kwargs,
 ) -> None:
     if datapath is None:
@@ -340,4 +340,4 @@ def create_db_mp(  # noqa: PLR0912
                     db_t[key][intv[0] : intv[1]] = db_s[key]
             Path(datapath, name).unlink()
 
-    print("Database created")
+    print("Database created with the following name:", db_name)
