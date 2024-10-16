@@ -50,4 +50,6 @@ def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) 
 
 
 if __name__ == "__main__":
-    eval_ddpm(dim=2, res=32, n_samples=10, model_name="ddpm_test.pth", device="cuda:0")
+    eval_ddpm(
+        dim=2, res=32, n_samples=10, model_name="ddpm_test_max.pth", device="cuda:0"
+    )

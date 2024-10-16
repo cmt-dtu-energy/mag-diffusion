@@ -6,20 +6,22 @@ from torch.utils.data import DataLoader
 
 import wandb
 from pmdd.data import MagnetismData2D
-from pmdd.mindiffusion.ddpm import DDPM
-from pmdd.mindiffusion.unet import NaiveUnet
+from pmdd.loss import VPLoss
+from pmdd.networks import VEPrecond
+from pmdd.sample import sample
 from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
 
 
 def train(device="cuda:0", wandb_=True) -> None:
-    start_time = time.time()
+    # start_time = time.time()
     datapath = Path.cwd() / "data"
     outpath = Path.cwd() / "output"
     n_samples = 1
     print_every = 100
 
     cfg = {
+        "seed": 0,
         "epochs": 1000,
         "betas": (1e-4, 0.02),
         "n_T": 1000,
@@ -34,12 +36,8 @@ def train(device="cuda:0", wandb_=True) -> None:
     if wandb_:
         wandb.init(entity="dl4mag", project="mag-diffusion-test", config=cfg)
 
-    ddpm = DDPM(
-        eps_model=NaiveUnet(cfg["dim"], cfg["dim"], cfg["features"]),
-        betas=cfg["betas"],
-        n_T=cfg["n_T"],
-    )
-    ddpm.to(device)
+    ddpm = VEPrecond(cfg["res"], cfg["dim"])
+    ddpm.train().requires_grad_(True).to(device)
     dataloader = DataLoader(
         MagnetismData2D(datapath, cfg["db_name"], cfg["max"], norm_=False),
         batch_size=cfg["batch_size"],
@@ -48,6 +46,9 @@ def train(device="cuda:0", wandb_=True) -> None:
     )
     optim = torch.optim.Adam(ddpm.parameters(), lr=cfg["lr"])
 
+    # variance-preserving (vp)
+    loss_fn = VPLoss()
+
     for i in range(cfg["epochs"]):
         ddpm.train()
 
@@ -55,8 +56,9 @@ def train(device="cuda:0", wandb_=True) -> None:
         for x in dataloader:
             optim.zero_grad()
             x = x.to(device)  # noqa: PLW2901
-            loss = ddpm(x)
+            loss = loss_fn(ddpm, x).sum()
             loss.backward()
+
             if loss_ema is None:
                 loss_ema = loss.item()
             else:
@@ -64,38 +66,46 @@ def train(device="cuda:0", wandb_=True) -> None:
             optim.step()
 
         if i % print_every == 0:
-            ddpm.eval()
-            with torch.no_grad():
-                xh = ddpm.sample(
-                    n_samples, (cfg["dim"], cfg["res"], cfg["res"]), device
+            # ddpm.eval()
+            # with torch.no_grad():
+            xh = sample(
+                ddpm,
+                n_samples,
+                device,
+                num_steps=2000,
+                sigma=[0.002, 80],
+                rho=7,
+                zeta_pde=1000,
+            )
+            tot_curl = 0
+            tot_div = 0
+            tot_std = 0
+
+            for sam in xh:
+                tot_curl += abs(curl_2d(sam.cpu().numpy())).mean()
+                tot_div += abs(div_2d(sam.cpu().numpy())).mean()
+                tot_std += sam.std().item()
+
+            fig = plot_ddpm_sample(xh.cpu())
+            if wandb_:
+                wandb.log(
+                    {
+                        "loss": loss_ema,
+                        "curl": tot_curl / n_samples,
+                        "div": tot_div / n_samples,
+                        # "std": tot_std / n_samples,
+                        "sample": wandb.Image(fig),
+                    },
+                    step=i,
                 )
-                tot_curl = 0
-                tot_div = 0
-                tot_std = 0
 
-                for sam in xh:
-                    tot_curl += abs(curl_2d(sam.cpu().numpy())).mean()
-                    tot_div += abs(div_2d(sam.cpu().numpy())).mean()
-                    tot_std += sam.std().item()
+                print(loss_ema)
 
-                fig = plot_ddpm_sample(xh.cpu())
-                if wandb_:
-                    wandb.log(
-                        {
-                            "loss": loss_ema,
-                            "curl": tot_curl / n_samples,
-                            "div": tot_div / n_samples,
-                            # "std": tot_std / n_samples,
-                            "sample": wandb.Image(fig),
-                        },
-                        step=i,
-                    )
-
-        torch.save(ddpm.state_dict(), outpath / "ddpm_test_max.pth")
+        torch.save(ddpm.state_dict(), outpath / "ddpm_test_max_pde.pth")
 
     if wandb_:
         wandb.finish()
 
 
 if __name__ == "__main__":
-    train(wandb_=True)
+    train(wandb_=False)
