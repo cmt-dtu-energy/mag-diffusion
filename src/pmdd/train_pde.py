@@ -72,7 +72,7 @@ def train(device="cuda:0", wandb_=True) -> None:
                 ddpm,
                 n_samples,
                 device,
-                num_steps=2000,
+                num_steps=200,
                 sigma=[0.002, 80],
                 rho=7,
                 zeta_pde=1000,
@@ -82,11 +82,12 @@ def train(device="cuda:0", wandb_=True) -> None:
             tot_std = 0
 
             for sam in xh:
-                tot_curl += abs(curl_2d(sam.cpu().numpy())).mean()
-                tot_div += abs(div_2d(sam.cpu().numpy())).mean()
-                tot_std += sam.std().item()
+                sam = sam.detach().cpu()  # noqa: PLW2901
+                tot_curl += abs(curl_2d(sam)).mean()
+                tot_div += abs(div_2d(sam)).mean()
+                tot_std += sam.std()
 
-            fig = plot_ddpm_sample(xh.cpu())
+            fig = plot_ddpm_sample(xh.detach().cpu())
             if wandb_:
                 wandb.log(
                     {
@@ -108,4 +109,4 @@ def train(device="cuda:0", wandb_=True) -> None:
 
 
 if __name__ == "__main__":
-    train(wandb_=False)
+    train(wandb_=True)

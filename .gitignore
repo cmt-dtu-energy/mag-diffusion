@@ -166,3 +166,5 @@ data/
 figs/
 output/
 wandb/
+
+nohup.out
