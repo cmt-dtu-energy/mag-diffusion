@@ -1,4 +1,3 @@
-import time
 from pathlib import Path
 
 import torch
@@ -7,7 +6,7 @@ from torch.utils.data import DataLoader
 import wandb
 from pmdd.data import MagnetismData2D
 from pmdd.loss import VPLoss
-from pmdd.networks import VEPrecond
+from pmdd.networks import VPPrecond
 from pmdd.sample import sample
 from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
@@ -36,7 +35,7 @@ def train(device="cuda:0", wandb_=True) -> None:
     if wandb_:
         wandb.init(entity="dl4mag", project="mag-diffusion-test", config=cfg)
 
-    ddpm = VEPrecond(cfg["res"], cfg["dim"])
+    ddpm = VPPrecond(cfg["res"], cfg["dim"])
     ddpm.train().requires_grad_(True).to(device)
     dataloader = DataLoader(
         MagnetismData2D(datapath, cfg["db_name"], cfg["max"], norm_=False),
