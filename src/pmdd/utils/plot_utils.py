@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import colors
@@ -35,7 +37,9 @@ def plot_magfield(field: np.ndarray, vmax: float = 1) -> None:
     plt.show()
 
 
-def plot_ddpm_sample(field: np.ndarray) -> None:
+def plot_ddpm_sample(
+    field: np.ndarray, figpath: Path = Path.cwd() / "figs", save: bool = False
+) -> None:
     nrows = field.shape[0]
     ncols = field.shape[1]
     fig, axes = plt.subplots(
@@ -50,5 +54,8 @@ def plot_ddpm_sample(field: np.ndarray) -> None:
 
     cbar_ax = fig.add_axes([0.825, 0.345, 0.015, 0.3])
     fig.colorbar(im, cax=cbar_ax)
+
+    if save:
+        plt.savefig(figpath / "ddpm_sample.png")
 
     return fig
