@@ -21,15 +21,15 @@ def train(device="cuda:0", wandb_=True) -> None:
 
     cfg = {
         "seed": 0,
-        "epochs": 1000,
-        "betas": (1e-4, 0.02),
-        "n_T": 1000,
-        "features": 16,
-        "lr": 2e-4,
-        "batch_size": 128,
+        "epochs": 5000,
+        # "betas": (1e-4, 0.02),
+        # "n_T": 1000,
+        # "features": 16,
+        "lr": 5e-4,
+        "batch_size": 256,
         "dim": 2,
         "res": 64,
-        "max": True,
+        "max": False,
         "db_name": "magfield_symm_64_10000.h5",
     }
     if wandb_:
@@ -74,7 +74,7 @@ def train(device="cuda:0", wandb_=True) -> None:
                 num_steps=200,
                 sigma=[0.002, 80],
                 rho=7,
-                zeta_pde=1000,
+                zeta_pde=0,
             )
             tot_curl = 0
             tot_div = 0
@@ -101,7 +101,7 @@ def train(device="cuda:0", wandb_=True) -> None:
 
                 print(loss_ema)
 
-        torch.save(ddpm.state_dict(), outpath / "ddpm_test_max_pde.pth")
+        torch.save(ddpm.state_dict(), outpath / "ddpm_test_pde.pth")
 
     if wandb_:
         wandb.finish()

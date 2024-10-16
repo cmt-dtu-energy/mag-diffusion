@@ -42,8 +42,9 @@ import tqdm
 #     return pde_loss, observation_loss_u
 
 
-def sample(net, n_samples, device, num_steps, sigma, rho, zeta_pde) -> None:
-    ############################ Set up EDM latent ############################
+def sample(
+    net, n_samples, device, num_steps, sigma, rho, zeta_pde, div_loss=False
+) -> None:
     print(f"Generating {n_samples} samples...")
     latents = torch.randn(
         [n_samples, net.img_channels, net.img_resolution, net.img_resolution],

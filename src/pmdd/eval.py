@@ -4,6 +4,8 @@ import torch
 
 from pmdd.mindiffusion.ddpm import DDPM
 from pmdd.mindiffusion.unet import NaiveUnet
+from pmdd.networks import VPPrecond
+from pmdd.sample import sample
 from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
 
@@ -20,7 +22,6 @@ def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) 
         "betas": (1e-4, 0.02),
         "n_T": 1000,
         "features": 16,
-        "lr": 2e-4,
     }
 
     ddpm = DDPM(
@@ -49,7 +50,46 @@ def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) 
         print(f"Std: {tot_std / n_samples}")
 
 
+def eval_ddpm_pde(
+    dim: int, res: int, n_samples: int, model_name: str, device: str
+) -> None:
+    # Load the pre-trained model
+    outpath = Path.cwd() / "output"
+    params = torch.load(outpath / model_name)
+    tot_curl = 0
+    tot_div = 0
+    tot_std = 0
+
+    ddpm = VPPrecond(res, dim)
+    ddpm.train().requires_grad_(True).to(device)
+
+    # Load the state dictionary into the model
+    ddpm.load_state_dict(params)
+
+    xh = sample(
+        ddpm,
+        n_samples,
+        device,
+        num_steps=200,
+        sigma=[0.002, 80],
+        rho=7,
+        zeta_pde=0,
+    )
+
+    for sam in xh:
+        sam = sam.detach().cpu()  # noqa: PLW2901
+        tot_curl += abs(curl_2d(sam)).mean()
+        tot_div += abs(div_2d(sam)).mean()
+        tot_std += sam.std()
+
+    _ = plot_ddpm_sample(xh.detach().cpu(), figname="diff_pde", save=True)
+
+    print(f"Curl: {tot_curl / n_samples}")
+    print(f"Div: {tot_div / n_samples}")
+    print(f"Std: {tot_std / n_samples}")
+
+
 if __name__ == "__main__":
-    eval_ddpm(
-        dim=2, res=32, n_samples=10, model_name="ddpm_test_max.pth", device="cuda:0"
+    eval_ddpm_pde(
+        dim=2, res=64, n_samples=1, model_name="ddpm_test_max_pde.pth", device="cuda:0"
     )

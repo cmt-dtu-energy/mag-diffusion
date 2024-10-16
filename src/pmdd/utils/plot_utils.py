@@ -38,7 +38,10 @@ def plot_magfield(field: np.ndarray, vmax: float = 1) -> None:
 
 
 def plot_ddpm_sample(
-    field: np.ndarray, figpath: Path = Path.cwd() / "figs", save: bool = False
+    field: np.ndarray,
+    figpath: Path = Path.cwd() / "figs",
+    figname="ddpm_sample",
+    save: bool = False,
 ) -> None:
     nrows = field.shape[0]
     ncols = field.shape[1]
@@ -56,6 +59,6 @@ def plot_ddpm_sample(
     fig.colorbar(im, cax=cbar_ax)
 
     if save:
-        plt.savefig(figpath / "ddpm_sample.png")
+        plt.savefig(figpath / f"{figname}.png")
 
     return fig

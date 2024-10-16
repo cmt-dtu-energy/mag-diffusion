@@ -25,7 +25,7 @@ def train(device="cuda:0", wandb_=True) -> None:
         "n_T": 1000,
         "features": 16,
         "lr": 2e-4,
-        "batch_size": 128,
+        "batch_size": 500,
         "dim": 2,
         "res": 64,
         "max": True,
