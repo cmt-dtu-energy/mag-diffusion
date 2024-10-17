@@ -52,7 +52,13 @@ def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) 
 
 
 def eval_ddpm_pde(
-    dim: int, res: int, n_samples: int, model_name: str, device: str
+    dim: int,
+    res: int,
+    n_samples: int,
+    model_name: str,
+    device: str,
+    div_loss: bool = False,
+    plot_div: bool = False,
 ) -> None:
     # For reproducibility
     torch.manual_seed(42)
@@ -77,16 +83,30 @@ def eval_ddpm_pde(
         sigma=[0.002, 80],
         rho=7,
         zeta_pde=10,
-        div_loss=True,
+        div_loss=div_loss,
     )
 
-    for sam in xh:
+    if plot_div:
+        np_div = np.zeros((n_samples, res, res))
+
+    for i, sam in enumerate(xh):
         sam = sam.detach().cpu()  # noqa: PLW2901
         tot_curl += np.abs(curl_2d(sam)).mean()
         tot_div += np.abs(div_2d(sam)).mean()
         tot_std += sam.std()
 
-    _ = plot_ddpm_sample(xh.detach().cpu(), figname="diff_pde", save=True)
+        if plot_div:
+            np_div[i] = div_2d(sam)
+
+    _ = plot_ddpm_sample(xh.detach().cpu(), figname=f"diff_pde_{div_loss!s}", save=True)
+
+    if plot_div:
+        _ = plot_ddpm_sample(
+            np.expand_dims(np_div, axis=1),
+            figname=f"div_pde_{div_loss!s}",
+            vmax=1e-3,
+            save=True,
+        )
 
     print(f"Curl: {tot_curl / n_samples}")
     print(f"Div: {tot_div / n_samples}")
@@ -95,5 +115,11 @@ def eval_ddpm_pde(
 
 if __name__ == "__main__":
     eval_ddpm_pde(
-        dim=2, res=64, n_samples=3, model_name="ddpm_test_pde.pth", device="cuda:0"
+        dim=2,
+        res=64,
+        n_samples=3,
+        model_name="ddpm_test_pde.pth",
+        device="cuda:0",
+        div_loss=True,
+        plot_div=True,
     )

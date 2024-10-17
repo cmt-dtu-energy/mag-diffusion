@@ -41,6 +41,7 @@ def plot_ddpm_sample(
     field: np.ndarray,
     figpath: Path = Path.cwd() / "figs",
     figname="ddpm_sample",
+    vmax: float = 1,
     save: bool = False,
 ) -> None:
     nrows = field.shape[0]
@@ -48,12 +49,12 @@ def plot_ddpm_sample(
     fig, axes = plt.subplots(
         nrows=nrows, ncols=ncols, sharex=True, sharey=True, figsize=(15, 10)
     )
-    norm = colors.Normalize(vmin=-1, vmax=1)
+    norm = colors.Normalize(vmin=-vmax, vmax=vmax)
 
     for j, sample in enumerate(field):
         for k, comp in enumerate(sample):
             ax = axes.flat[j * ncols + k]
-            im = ax.imshow(comp.numpy(), cmap="bwr", norm=norm, origin="lower")
+            im = ax.imshow(comp, cmap="bwr", norm=norm, origin="lower")
 
     cbar_ax = fig.add_axes([0.925, 0.27, 0.015, 0.45])
     fig.colorbar(im, cax=cbar_ax)
