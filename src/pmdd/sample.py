@@ -12,11 +12,6 @@ def sample(
         [n_samples, net.img_channels, net.img_resolution, net.img_resolution],
         device=device,
     )
-    class_labels = None
-    # if net.label_dim:
-    #     class_labels = torch.eye(net.label_dim, device=device)[
-    #         torch.randint(net.label_dim, size=[n_samples], device=device)
-    #     ]
 
     sigma_min = max(sigma[0], net.sigma_min)
     sigma_max = min(sigma[1], net.sigma_max)
@@ -45,13 +40,13 @@ def sample(
         sigma_t = net.round_sigma(sigma_t_cur)
 
         # Euler step
-        x_N = net(x_cur, sigma_t, class_labels=class_labels).to(torch.float64)
+        x_N = net(x_cur, sigma_t).to(torch.float64)
         d_cur = (x_cur - x_N) / sigma_t
         x_next = x_cur + (sigma_t_next - sigma_t) * d_cur
 
         # 2nd order correction
         if i < num_steps - 1:
-            x_N = net(x_next, sigma_t_next, class_labels=class_labels).to(torch.float64)
+            x_N = net(x_next, sigma_t_next).to(torch.float64)
             d_prime = (x_next - x_N) / sigma_t_next
             x_next = x_cur + (sigma_t_next - sigma_t) * (0.5 * d_cur + 0.5 * d_prime)
 

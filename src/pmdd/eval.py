@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from pmdd.mindiffusion.ddpm import DDPM
+from pmdd.mindiffusion.ddpm import DDPM, DDPMGuided
 from pmdd.mindiffusion.unet import NaiveUnet
 from pmdd.networks import VPPrecond
 from pmdd.sample import sample
@@ -11,7 +11,17 @@ from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
 
 
-def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) -> None:
+def eval_ddpm(
+    dim: int,
+    res: int,
+    n_samples: int,
+    model_name: str,
+    device: str,
+    div_loss=bool,
+    guide_weight: int = 1,
+) -> None:
+    # For reproducibility
+    torch.manual_seed(42)
     # Load the pre-trained model
     outpath = Path.cwd() / "output"
     params = torch.load(outpath / model_name, weights_only=True)
@@ -25,30 +35,41 @@ def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) 
         "features": 16,
     }
 
-    ddpm = DDPM(
-        eps_model=NaiveUnet(dim, dim, cfg["features"]),
-        betas=cfg["betas"],
-        n_T=cfg["n_T"],
-    )
+    if div_loss:
+        ddpm = DDPMGuided(
+            eps_model=NaiveUnet(dim, dim, cfg["features"]),
+            betas=cfg["betas"],
+            n_T=cfg["n_T"],
+        )
+    else:
+        ddpm = DDPM(
+            eps_model=NaiveUnet(dim, dim, cfg["features"]),
+            betas=cfg["betas"],
+            n_T=cfg["n_T"],
+        )
     ddpm.to(device)
-
-    # Load the state dictionary into the model
     ddpm.load_state_dict(params)
 
-    ddpm.eval()
-    with torch.no_grad():
-        xh = ddpm.sample(n_samples, (dim, res, res), device)
+    if div_loss:
+        xh = ddpm.sample(n_samples, (dim, res, res), device, guide_weight)
+    else:
+        ddpm.eval()
+        with torch.no_grad():
+            xh = ddpm.sample(n_samples, (dim, res, res), device)
 
-        for sam in xh:
-            tot_curl += abs(curl_2d(sam.cpu().numpy())).mean()
-            tot_div += abs(div_2d(sam.cpu().numpy())).mean()
-            tot_std += sam.std().item()
+    for sam in xh:
+        sam = sam.detach().cpu()  # noqa: PLW2901
+        tot_curl += np.abs(curl_2d(sam)).mean()
+        tot_div += np.abs(div_2d(sam)).mean()
+        tot_std += sam.std().item()
 
-        _ = plot_ddpm_sample(xh.cpu(), save=True)
+    _ = plot_ddpm_sample(
+        xh.detach().cpu(), figname=f"ddpm_sample_{div_loss!s}", save=True
+    )
 
-        print(f"Curl: {tot_curl / n_samples}")
-        print(f"Div: {tot_div / n_samples}")
-        print(f"Std: {tot_std / n_samples}")
+    print(f"Curl: {tot_curl / n_samples}")
+    print(f"Div: {tot_div / n_samples}")
+    print(f"Std: {tot_std / n_samples}")
 
 
 def eval_ddpm_pde(
@@ -114,12 +135,23 @@ def eval_ddpm_pde(
 
 
 if __name__ == "__main__":
-    eval_ddpm_pde(
+    # eval_ddpm_pde(
+    #     dim=2,
+    #     res=64,
+    #     n_samples=3,
+    #     model_name="ddpm_test_pde.pth",
+    #     device="cuda:0",
+    #     div_loss=True,
+    #     plot_div=True,
+    # )
+
+    # dim: int, res: int, n_samples: int, model_name: str, device: str
+    eval_ddpm(
         dim=2,
         res=64,
-        n_samples=3,
-        model_name="ddpm_test_pde.pth",
+        n_samples=2,
+        model_name="ddpm_test_max.pth",
         device="cuda:0",
         div_loss=True,
-        plot_div=True,
+        guide_weight=10,
     )
