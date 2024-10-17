@@ -665,7 +665,7 @@ class DhariwalUNet(torch.nn.Module):
         out_channels,
         label_dim=0,
         augment_dim=0,
-        model_channels=192,
+        model_channels=16,
         channel_mult=[1, 2, 3, 4],
         channel_mult_emb=4,
         num_blocks=3,
