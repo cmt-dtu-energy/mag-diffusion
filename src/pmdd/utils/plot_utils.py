@@ -55,7 +55,7 @@ def plot_ddpm_sample(
             ax = axes.flat[j * ncols + k]
             im = ax.imshow(comp.numpy(), cmap="bwr", norm=norm, origin="lower")
 
-    cbar_ax = fig.add_axes([0.825, 0.345, 0.015, 0.3])
+    cbar_ax = fig.add_axes([0.925, 0.27, 0.015, 0.45])
     fig.colorbar(im, cax=cbar_ax)
 
     if save:

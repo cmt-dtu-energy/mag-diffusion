@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import torch
 
 from pmdd.mindiffusion.ddpm import DDPM
@@ -13,7 +14,7 @@ from pmdd.utils.plot_utils import plot_ddpm_sample
 def eval_ddpm(dim: int, res: int, n_samples: int, model_name: str, device: str) -> None:
     # Load the pre-trained model
     outpath = Path.cwd() / "output"
-    params = torch.load(outpath / model_name)
+    params = torch.load(outpath / model_name, weights_only=True)
     tot_curl = 0
     tot_div = 0
     tot_std = 0
@@ -55,7 +56,7 @@ def eval_ddpm_pde(
 ) -> None:
     # Load the pre-trained model
     outpath = Path.cwd() / "output"
-    params = torch.load(outpath / model_name)
+    params = torch.load(outpath / model_name, weights_only=True)
     tot_curl = 0
     tot_div = 0
     tot_std = 0
@@ -73,16 +74,17 @@ def eval_ddpm_pde(
         num_steps=200,
         sigma=[0.002, 80],
         rho=7,
-        zeta_pde=0,
+        zeta_pde=10,
+        div_loss=False,
     )
 
     for sam in xh:
         sam = sam.detach().cpu()  # noqa: PLW2901
-        tot_curl += abs(curl_2d(sam)).mean()
-        tot_div += abs(div_2d(sam)).mean()
+        tot_curl += np.abs(curl_2d(sam)).mean()
+        tot_div += np.abs(div_2d(sam)).mean()
         tot_std += sam.std()
 
-    _ = plot_ddpm_sample(xh.detach().cpu(), figname="diff_pde", save=True)
+    _ = plot_ddpm_sample(xh.detach().cpu(), figname="diff_pde_div", save=True)
 
     print(f"Curl: {tot_curl / n_samples}")
     print(f"Div: {tot_div / n_samples}")
@@ -91,5 +93,5 @@ def eval_ddpm_pde(
 
 if __name__ == "__main__":
     eval_ddpm_pde(
-        dim=2, res=64, n_samples=1, model_name="ddpm_test_max_pde.pth", device="cuda:0"
+        dim=2, res=64, n_samples=3, model_name="ddpm_test_pde.pth", device="cuda:0"
     )
