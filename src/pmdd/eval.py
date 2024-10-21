@@ -5,7 +5,7 @@ import torch
 
 from pmdd.mindiffusion.ddpm import DDPM, DDPMGuided
 from pmdd.mindiffusion.unet import NaiveUnet
-from pmdd.networks import VPPrecond
+from pmdd.networks import EDMPrecond, VPPrecond
 from pmdd.sample import sample
 from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
@@ -17,11 +17,12 @@ def eval_ddpm(
     n_samples: int,
     model_name: str,
     device: str,
+    seed: int = 42,
     div_loss=bool,
     guide_weight: int = 1,
 ) -> None:
     # For reproducibility
-    torch.manual_seed(42)
+    torch.manual_seed(seed)
     # Load the pre-trained model
     outpath = Path.cwd() / "output"
     params = torch.load(outpath / model_name, weights_only=True)
@@ -64,7 +65,7 @@ def eval_ddpm(
         tot_std += sam.std().item()
 
     _ = plot_ddpm_sample(
-        xh.detach().cpu(), figname=f"ddpm_sample_{div_loss!s}", save=True
+        xh.detach().cpu(), figname=f"ddpm_sample_{div_loss!s}", save=True, vmax=3
     )
 
     print(f"Curl: {tot_curl / n_samples}")
@@ -78,11 +79,12 @@ def eval_ddpm_pde(
     n_samples: int,
     model_name: str,
     device: str,
+    seed: int = 42,
     div_loss: bool = False,
     plot_div: bool = False,
 ) -> None:
     # For reproducibility
-    torch.manual_seed(42)
+    torch.manual_seed(seed)
     # Load the pre-trained model
     outpath = Path.cwd() / "output"
     params = torch.load(outpath / model_name, weights_only=True)
@@ -90,7 +92,7 @@ def eval_ddpm_pde(
     tot_div = 0
     tot_std = 0
 
-    ddpm = VPPrecond(res, dim)
+    ddpm = EDMPrecond(res, dim)  # VPPrecond(res, dim)
     ddpm.train().requires_grad_(True).to(device)
 
     # Load the state dictionary into the model
@@ -103,7 +105,7 @@ def eval_ddpm_pde(
         num_steps=200,
         sigma=[0.002, 80],
         rho=7,
-        zeta_pde=10,
+        zeta_pde=100,
         div_loss=div_loss,
     )
 
@@ -139,8 +141,9 @@ if __name__ == "__main__":
     #     dim=2,
     #     res=64,
     #     n_samples=3,
-    #     model_name="ddpm_test_pde.pth",
+    #     model_name="ddpm_10-17_16-13.pth",
     #     device="cuda:0",
+    #     seed=52,
     #     div_loss=True,
     #     plot_div=True,
     # )
@@ -153,5 +156,5 @@ if __name__ == "__main__":
         model_name="ddpm_test_max.pth",
         device="cuda:0",
         div_loss=True,
-        guide_weight=10,
+        guide_weight=100,
     )
