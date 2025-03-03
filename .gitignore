@@ -165,6 +165,7 @@ cython_debug/
 data/
 figs/
 output/
+params/
 wandb/
 
 nohup.out

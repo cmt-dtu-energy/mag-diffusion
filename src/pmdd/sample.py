@@ -5,13 +5,16 @@ import tqdm
 
 
 def sample(
-    net, n_samples, device, num_steps, sigma, rho, zeta_pde, div_loss=False
+    net, n_samples, device, num_steps, sigma, rho, pde_loss=False, zeta_pde=100, obs_loss=False, zeta_obs = 100, observations = None, 
+    mask = None, obs_scaling = 1, init_noise=None
 ) -> None:
     print(f"Generating {n_samples} samples...")
-    latents = torch.randn(
-        [n_samples, net.img_channels, net.img_resolution, net.img_resolution],
-        device=device,
-    )
+    latents = init_noise
+    if init_noise == None:
+        latents = torch.randn(
+            [n_samples, net.img_channels, net.img_resolution, net.img_resolution],
+            device=device,
+        )
 
     sigma_min = max(sigma[0], net.sigma_min)
     sigma_max = min(sigma[1], net.sigma_max)
@@ -28,7 +31,6 @@ def sample(
     )  # t_N = 0
 
     x_next = latents.to(torch.float64) * sigma_t_steps[0]
-    # TODO Random index for observations
 
     ############################ Sample the data ############################
     for i, (sigma_t_cur, sigma_t_next) in tqdm.tqdm(
@@ -52,31 +54,44 @@ def sample(
 
         # TODO Scale the data back
 
+        x_N_scaled = x_N*obs_scaling
+
         # Div 2D
-        if div_loss:
-            Fx_x = torch.gradient(x_N[:, 0:1], dim=2)[0]
-            Fy_y = torch.gradient(x_N[:, 1:2], dim=3)[0]
+        if pde_loss:
+            Fx_x = torch.gradient(x_N_scaled[:, 0:1], dim=2)[0]
+            Fy_y = torch.gradient(x_N_scaled[:, 1:2], dim=3)[0]
             div = torch.cat([Fx_x, Fy_y], dim=1).sum(dim=1)
-            L_pde = div.abs().mean()
-            grad_x_cur_pde = torch.autograd.grad(outputs=L_pde, inputs=x_cur)[0]
+            L_div = torch.linalg.norm(div)/(net.img_resolution**2)
+            Fx_y = torch.gradient(x_N_scaled[:, 0:1], dim=3)[0]
+            Fy_x = torch.gradient(x_N_scaled[:, 1:2], dim=2)[0]
+            curl = Fy_x-Fx_y
+            L_curl = torch.linalg.norm(curl)/(net.img_resolution**2)
+            L_pde = L_div + L_curl
+            grad_x_cur_pde = torch.autograd.grad(outputs=L_pde, inputs=x_cur, retain_graph=True)[0]
+    
+        if obs_loss:
+            L_obs = torch.linalg.norm((x_N_scaled-observations*mask)*mask)/torch.sum(mask)
 
-        # if obs_loss:
-        #     obs_loss = (u - u_GT).squeeze()
-        #     L_obs_u = (obs_loss * u_mask)**2
+            grad_x_cur_obs = torch.autograd.grad(
+                outputs=L_obs, inputs=x_cur, retain_graph=True
+            )[0]
 
-        #     grad_x_cur_obs_u = torch.autograd.grad(
-        #         outputs=L_obs_u, inputs=x_cur, retain_graph=True
-        #     )[0]
-
-        # if i <= 0.8 * num_steps:
-        #     x_next = x_next  # - zeta_obs_u * grad_x_cur_obs_u
-        # else:
-
-        if i > 0.8 * num_steps and div_loss:
+        if i <= 0.8 * num_steps and obs_loss:
             x_next = (
-                x_next
-                # - 0.1 * (zeta_obs_u * grad_x_cur_obs_u)
-                - zeta_pde * grad_x_cur_pde
+                    x_next 
+                    - zeta_obs * grad_x_cur_obs
             )
 
-    return x_N
+        if i > 0.8 * num_steps:
+            if pde_loss:
+                x_next = (
+                    x_next
+                    - zeta_pde * grad_x_cur_pde
+                )
+            if obs_loss:
+                x_next = (
+                    x_next
+                    - 0.1 * (zeta_obs * grad_x_cur_obs)
+                )
+
+    return x_next*obs_scaling

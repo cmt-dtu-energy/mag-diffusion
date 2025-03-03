@@ -13,40 +13,32 @@ from pmdd.utils.calc_utils import curl_2d, div_2d
 from pmdd.utils.plot_utils import plot_ddpm_sample
 
 
-def train(device="cuda:0", wandb_=True) -> None:
+def train(cfg, device="cuda:1", wandb_=True, save_name = "") -> None:
     start_t = datetime.now()
-    datapath = Path.cwd() / "data"
+    #datapath = Path.cwd() / "data"
+    datapath = "/home/s214435/data"
     outpath = Path.cwd() / "output"
     n_samples = 1
     print_every = 100
+    save_every = 1000
 
-    cfg = {
-        "seed": 0,
-        "epochs": 5000,
-        "lr": 1e-3,
-        "batch_size": 500,
-        "dim": 2,
-        "res": 64,
-        "max": False,
-        "db_name": "magfield_symm_64_100000.h5",
-    }
     if wandb_:
         wandb.init(entity="dl4mag", project="mag-diffusion", config=cfg)
 
     torch.manual_seed(cfg["seed"])
-    ddpm = EDMPrecond(cfg["res"], cfg["dim"])
+    ddpm = EDMPrecond(cfg["res"], cfg["dim"], model_channels = cfg["model_channels"], channel_mult = cfg["channel_mult"], num_blocks = cfg["num_blocks"], sigma_data=1)
     ddpm.train().requires_grad_(True).to(device)
     dataloader = DataLoader(
-        MagnetismData2D(datapath, cfg["db_name"], cfg["max"], norm_=False),
+        MagnetismData2D(datapath, cfg["db_name"], cfg["max"], norm_=False, max_observations=cfg["data_limit"]),
         batch_size=cfg["batch_size"],
         shuffle=True,
         num_workers=15,
     )
     optim = torch.optim.Adam(ddpm.parameters(), lr=cfg["lr"])
-    loss_fn = EDMLoss()
+    loss_fn = EDMLoss(sigma_data=1)
     cur_nimg = 0
 
-    for i in range(cfg["epochs"]):
+    for i in range(cfg["epochs"]+1):
         ddpm.train()
 
         loss_ema = None
@@ -103,20 +95,76 @@ def train(device="cuda:0", wandb_=True) -> None:
                         "curl": tot_curl / n_samples,
                         "div": tot_div / n_samples,
                         # "std": tot_std / n_samples,
-                        "sample": wandb.Image(fig),
+                        "sample": wandb.Image(fig)
                     },
                     step=i,
                 )
 
                 print(loss_ema)
 
-        torch.save(
-            ddpm.state_dict(), outpath / f"ddpm_{start_t.strftime('%m-%d_%H-%M')}.pth"
-        )
+        if i % save_every == 0:
+            torch.save(
+                ddpm.state_dict(), f"ddpm_{save_name}_epoch_{i}.pth"
+                #{start_t.strftime('%m-%d_%H-%M')}_
+            )
 
     if wandb_:
         wandb.finish()
 
 
 if __name__ == "__main__":
-    train(wandb_=True)
+
+    #channel_mult = [1,2,3,4]
+    #num_blocks = [1,2,3]
+
+    # for i in range(3):
+    #     cfg = {
+    #         "seed": 0,
+    #         "epochs": 3000,
+    #         "lr": 1e-3,
+    #         "batch_size": 500,
+    #         "dim": 2,
+    #         "res": 64,
+    #         "max": False,
+    #         "db_name": "magfield_symm_64_30000.h5",
+    #         "model_channels" : 16,
+    #         "channel_mult" : channel_mult[0:i+2],
+    #         "num_blocks" : num_blocks[i]
+    #     }
+    #    train(cfg, wandb_=True, save_name=f"layers_{len(channel_mult[0:i+2])}_blocks_{num_blocks[i]}")
+
+    model_channels = [4,8, 16]
+
+    for i in range(3):
+        cfg = {
+            "seed": 0,
+            "epochs": 3000,
+            "lr": 1e-3,
+            "batch_size": 500,
+            "dim": 2,
+            "res": 64,
+            "max": False,
+            "db_name": "magfield_symm_64_30000.h5",
+            "model_channels" : model_channels[i],
+            "channel_mult" : [1,2],
+            "num_blocks" : 1,
+            "data_limit" : None
+        }
+        train(cfg, wandb_=True, save_name=f"small_channels_{model_channels[i]}")
+
+    # cfg_data = {
+    #     "seed": 0,
+    #     "epochs": 2000,
+    #     "lr": 1e-3,
+    #     "batch_size": 500,
+    #     "dim": 2,
+    #     "res": 64,
+    #     "max": False,
+    #     "db_name": "magfield_symm_64_30000.h5",
+    #     "model_channels" : 16,
+    #     "channel_mult" : [1,2,3],
+    #     "num_blocks" : 2,
+    #     "data_limit" : 10000
+    # }
+    # train(cfg_data, wandb_=True, save_name=f"data_limit_{10000}_epochs_{20000}")
+

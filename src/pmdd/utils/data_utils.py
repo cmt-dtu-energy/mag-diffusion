@@ -181,10 +181,10 @@ def db_magfield_symm(  # noqa: PLR0912
     mag_angle_mat = rng.random(size=(n_samples, spots[0] * spots[1] * spots[2]))
 
     for idx in tqdm(range(n_intv)):
-        emp_x = spots[0] // 2 - 1
-        emp_y = emp_x + 1
-        s_x = emp_x * tile_size[0]
-        s_y = emp_y * tile_size[1]
+        emp_x = spots[0] // 2 - 1 #4
+        emp_y = emp_x + 1 #5
+        s_x = emp_x * tile_size[0] #0,4
+        s_y = emp_y * tile_size[1] #0,5
 
         filled_pos = [
             [i, j, k]
