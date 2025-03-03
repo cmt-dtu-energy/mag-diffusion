@@ -9,6 +9,7 @@ def sample(
     mask = None, obs_scaling = 1, init_noise=None
 ) -> None:
     print(f"Generating {n_samples} samples...")
+    samples = []
     latents = init_noise
     if init_noise == None:
         latents = torch.randn(
@@ -38,6 +39,8 @@ def sample(
         unit="step",
     ):  # 0, ..., N-1
         x_cur = x_next.detach().clone()
+        if i % 10 == 0:
+            samples.append(x_cur)
         x_cur.requires_grad = True
         sigma_t = net.round_sigma(sigma_t_cur)
 
@@ -94,4 +97,4 @@ def sample(
                     - 0.1 * (zeta_obs * grad_x_cur_obs)
                 )
 
-    return x_next*obs_scaling
+    return x_next*obs_scaling, samples
